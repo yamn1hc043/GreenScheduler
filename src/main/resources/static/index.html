@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Eco-Schedule: Carbon-Aware Batch Processing Engine - Real-time monitoring dashboard for green energy scheduling">
+    <title>Eco-Schedule | Carbon-Aware Batch Scheduler</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ===== CSS VARIABLES & RESET ===== */
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.8);
+            --bg-card-hover: rgba(31, 41, 55, 0.9);
+            --border: rgba(55, 65, 81, 0.5);
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-dim: #6b7280;
+            --green: #00E676;
+            --green-dim: rgba(0, 230, 118, 0.15);
+            --green-glow: rgba(0, 230, 118, 0.3);
+            --red: #FF5252;
+            --red-dim: rgba(255, 82, 82, 0.15);
+            --red-glow: rgba(255, 82, 82, 0.3);
+            --yellow: #FFD740;
+            --blue: #448AFF;
+            --blue-dim: rgba(68, 138, 255, 0.15);
+            --purple: #E040FB;
+            --cyan: #18FFFF;
+            --thermal-color: #FF6B35;
+            --gas-color: #FFC107;
+            --nuclear-color: #AB47BC;
+            --hydro-color: #29B6F6;
+            --solar-color: #FFEE58;
+            --wind-color: #26A69A;
+            --card-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ===== ANIMATED BACKGROUND ===== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 230, 118, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 80%, rgba(68, 138, 255, 0.04) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--green), var(--cyan));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.25);
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title p {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .live-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .live-badge.green {
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+        }
+
+        .live-badge.dirty {
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid rgba(255, 82, 82, 0.3);
+        }
+
+        .live-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .live-badge.green .live-dot { background: var(--green); }
+        .live-badge.dirty .live-dot { background: var(--red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .sim-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-secondary);
+            background: rgba(31, 41, 55, 0.6);
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        /* ===== MAIN GRID ===== */
+        .dashboard {
+            position: relative;
+            z-index: 1;
+            padding: 24px 32px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* ===== CARD ===== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: rgba(100, 116, 139, 0.4);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            padding: 18px 22px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-header h2 .icon { font-size: 16px; }
+
+        .card-body { padding: 18px 22px 22px; }
+
+        /* ===== INTENSITY GAUGE (Card 1) ===== */
+        .gauge-card { grid-column: 1; }
+
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .gauge-svg-wrap {
+            position: relative;
+            width: 200px;
+            height: 120px;
+        }
+
+        .gauge-svg { width: 200px; height: 120px; }
+
+        .gauge-track {
+            fill: none;
+            stroke: rgba(55, 65, 81, 0.4);
+            stroke-width: 14;
+            stroke-linecap: round;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke-width: 14;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1),
+                        stroke 0.5s ease;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .gauge-value {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+
+        .gauge-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .gauge-unit {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-weight: 400;
+        }
+
+        .gauge-meta {
+            display: flex;
+            gap: 24px;
+            margin-top: 8px;
+        }
+
+        .gauge-meta-item {
+            text-align: center;
+        }
+
+        .gauge-meta-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .gauge-meta-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* ===== ENERGY MIX (Card 2) ===== */
+        .mix-card { grid-column: 2; }
+
+        .energy-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .energy-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .energy-label {
+            width: 70px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .energy-bar-track {
+            flex: 1;
+            height: 22px;
+            background: rgba(31, 41, 55, 0.6);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .energy-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .energy-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1));
+        }
+
+        .energy-value {
+            width: 70px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== STATS ROW (Card 3) ===== */
+        .stats-card { grid-column: 3; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-box {
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .stat-box:hover {
+            background: rgba(31, 41, 55, 0.7);
+        }
+
+        .stat-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .stat-num.green { color: var(--green); }
+        .stat-num.red { color: var(--red); }
+        .stat-num.blue { color: var(--blue); }
+        .stat-num.yellow { color: var(--yellow); }
+
+        /* ===== INTENSITY HISTORY CHART (Row 2, Col 1-2) ===== */
+        .chart-card { grid-column: 1 / 3; }
+
+        .chart-container {
+            width: 100%;
+            height: 180px;
+            position: relative;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-threshold-line {
+            stroke: var(--yellow);
+            stroke-width: 1.5;
+            stroke-dasharray: 6 4;
+            opacity: 0.6;
+        }
+
+        .chart-threshold-label {
+            font-size: 10px;
+            fill: var(--yellow);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .chart-area-green {
+            fill: rgba(0, 230, 118, 0.08);
+        }
+
+        .chart-area-red {
+            fill: rgba(255, 82, 82, 0.08);
+        }
+
+        .chart-line {
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .chart-dot {
+            r: 3;
+            transition: r 0.2s ease;
+        }
+
+        .chart-dot:hover { r: 5; }
+
+        /* ===== JOB QUEUE & EVENTS (Row 2, Col 3) ===== */
+        .jobs-events-card { grid-column: 3; grid-row: 2 / 4; }
+
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: rgba(31, 41, 55, 0.4);
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: transparent;
+        }
+
+        .tab:hover { color: var(--text-secondary); }
+
+        .tab.active {
+            background: rgba(55, 65, 81, 0.6);
+            color: var(--text-primary);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== JOB LIST ===== */
+        .job-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .job-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: rgba(31, 41, 55, 0.3);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .job-item:hover { background: rgba(31, 41, 55, 0.6); }
+
+        .job-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .job-icon.pending { background: var(--blue-dim); }
+        .job-icon.completed { background: var(--green-dim); }
+        .job-icon.running { background: rgba(255, 215, 64, 0.15); }
+        .job-icon.waiting { background: var(--red-dim); }
+
+        .job-info { flex: 1; min-width: 0; }
+
+        .job-name {
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .job-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .job-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .badge-pending { background: var(--blue-dim); color: var(--blue); }
+        .badge-completed { background: var(--green-dim); color: var(--green); }
+        .badge-running { background: rgba(255, 215, 64, 0.15); color: var(--yellow); }
+        .badge-waiting { background: var(--red-dim); color: var(--red); }
+
+        /* ===== EVENT TIMELINE ===== */
+        .event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(31, 41, 55, 0.2);
+            border-radius: 8px;
+            border-left: 3px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .event-item:hover { background: rgba(31, 41, 55, 0.5); }
+
+        .event-item.green-window { border-left-color: var(--green); }
+        .event-item.dirty-window { border-left-color: var(--red); }
+        .event-item.job-triggered { border-left-color: var(--blue); }
+        .event-item.job-completed { border-left-color: var(--green); }
+        .event-item.job-waiting { border-left-color: var(--yellow); }
+
+        .event-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            white-space: nowrap;
+            min-width: 52px;
+        }
+
+        .event-msg {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        /* ===== ADD JOB FORM ===== */
+        .add-job-form {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .add-job-input {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(31, 41, 55, 0.6);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .add-job-input:focus {
+            border-color: var(--green);
+            box-shadow: 0 0 0 3px var(--green-dim);
+        }
+
+        .add-job-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, var(--green), #00C853);
+            color: #000;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .add-job-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 230, 118, 0.3);
+        }
+
+        .reset-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .reset-btn:hover {
+            background: rgba(255, 82, 82, 0.1);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(55, 65, 81, 0.5); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(75, 85, 99, 0.7); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr 1fr;
+                padding: 16px;
+            }
+            .gauge-card { grid-column: 1; }
+            .mix-card { grid-column: 2; }
+            .stats-card { grid-column: 1 / 3; }
+            .chart-card { grid-column: 1 / 3; }
+            .jobs-events-card { grid-column: 1 / 3; grid-row: auto; }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .gauge-card, .mix-card, .stats-card, .chart-card, .jobs-events-card {
+                grid-column: 1;
+                grid-row: auto;
+            }
+            .header { padding: 12px 16px; }
+            .header-status { gap: 10px; }
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.05s; }
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.15s; }
+        .card:nth-child(4) { animation-delay: 0.2s; }
+        .card:nth-child(5) { animation-delay: 0.25s; }
+
+        .status-transition {
+            transition: color 0.5s ease, background 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">🌿</div>
+        <div class="header-title">
+            <h1>Eco-Schedule</h1>
+            <p>Carbon-Aware Batch Processing Engine</p>
+        </div>
+    </div>
+    <div class="header-status">
+        <div class="sim-time" id="simTime">Grid Time: --:--</div>
+        <div class="live-badge green" id="statusBadge">
+            <span class="live-dot"></span>
+            <span id="statusText">LOADING</span>
+        </div>
+    </div>
+</header>
+
+<!-- ===== DASHBOARD ===== -->
+<main class="dashboard">
+
+    <!-- Card 1: Carbon Intensity Gauge -->
+    <div class="card gauge-card">
+        <div class="card-header">
+            <h2><span class="icon">⚡</span> Carbon Intensity</h2>
+        </div>
+        <div class="card-body">
+            <div class="gauge-container">
+                <div class="gauge-svg-wrap">
+                    <svg class="gauge-svg" viewBox="0 0 200 120">
+                        <!-- Track -->
+                        <path class="gauge-track"
+                              d="M 20 110 A 80 80 0 0 1 180 110" />
+                        <!-- Fill -->
+                        <path class="gauge-fill" id="gaugeFill"
+                              d="M 20 110 A 80 80 0 0 1 180 110"
+                              stroke="var(--green)"
+                              stroke-dasharray="251"
+                              stroke-dashoffset="251" />
+                    </svg>
+                    <div class="gauge-value">
+                        <div class="gauge-number status-transition" id="gaugeNumber">--</div>
+                        <div class="gauge-unit">gCO2/kWh</div>
+                    </div>
+                </div>
+                <div class="gauge-meta">
+                    <div class="gauge-meta-item">
+                        <div class="gauge-meta-label">Threshold</div>
+                        <div class="gauge-meta-value" id="thresholdValue" style="color: var(--yellow)">600</div>
+                    </div>
+                    <div class="gauge-meta-item">
+                        <div class="gauge-meta-label">Total Gen</div>
+                        <div class="gauge-meta-value" id="totalGenValue" style="color: var(--cyan)">-- MW</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Energy Mix -->
+    <div class="card mix-card">
+        <div class="card-header">
+            <h2><span class="icon">🔋</span> Grid Energy Mix</h2>
+        </div>
+        <div class="card-body">
+            <div class="energy-bars" id="energyBars">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Quick Stats -->
+    <div class="card stats-card">
+        <div class="card-header">
+            <h2><span class="icon">📊</span> Quick Stats</h2>
+        </div>
+        <div class="card-body">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-num green" id="statCompleted">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num blue" id="statPending">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num yellow" id="statTotal">0</div>
+                    <div class="stat-label">Total Jobs</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-num" id="statCO2Saved" style="color: var(--cyan)">0</div>
+                    <div class="stat-label">CO₂ Saved</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Intensity History Chart -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h2><span class="icon">📈</span> Intensity Timeline</h2>
+            <span style="font-size: 11px; color: var(--text-dim);">Last 20 readings</span>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <svg class="chart-svg" id="chartSvg" preserveAspectRatio="none"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 5: Jobs & Events -->
+    <div class="card jobs-events-card">
+        <div class="card-header">
+            <h2><span class="icon">📋</span> Activity</h2>
+        </div>
+        <div class="card-body">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('jobs')">Jobs</button>
+                <button class="tab" onclick="switchTab('events')">Events</button>
+            </div>
+            <div class="tab-content active" id="tabJobs">
+                <div class="job-list" id="jobList">
+                    <div style="text-align:center; color: var(--text-dim); padding: 20px; font-size: 13px;">Loading jobs...</div>
+                </div>
+                <div class="add-job-form">
+                    <input class="add-job-input" id="newJobName" placeholder="New job name..." maxlength="50">
+                    <button class="add-job-btn" onclick="addJob()">+ Add</button>
+                    <button class="reset-btn" onclick="resetJobs()">Reset</button>
+                </div>
+            </div>
+            <div class="tab-content" id="tabEvents">
+                <div class="event-list" id="eventList">
+                    <div style="text-align:center; color: var(--text-dim); padding: 20px; font-size: 13px;">Loading events...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // ===== CONFIGURATION =====
+    const API_BASE = '';
+    const POLL_INTERVAL = 3000;
+    let threshold = 600;
+
+    // ===== INITIALIZATION =====
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchConfig();
+        poll();
+        setInterval(poll, POLL_INTERVAL);
+    });
+
+    async function fetchConfig() {
+        try {
+            const res = await fetch(`${API_BASE}/api/carbon/config`);
+            const config = await res.json();
+            threshold = config.threshold || 600;
+            document.getElementById('thresholdValue').textContent = threshold;
+        } catch (e) {
+            console.warn('Config fetch failed:', e);
+        }
+    }
+
+    // ===== POLLING =====
+    async function poll() {
+        try {
+            const [statusRes, jobsRes, eventsRes, historyRes] = await Promise.all([
+                fetch(`${API_BASE}/api/carbon/current-status`),
+                fetch(`${API_BASE}/api/scheduler/jobs`),
+                fetch(`${API_BASE}/api/events`),
+                fetch(`${API_BASE}/api/carbon/history`)
+            ]);
+
+            if (statusRes.ok) {
+                const status = await statusRes.json();
+                updateGauge(status);
+                updateEnergyMix(status);
+                updateHeader(status);
+            }
+
+            if (jobsRes.ok) {
+                const jobs = await jobsRes.json();
+                updateJobs(jobs);
+                updateStats(jobs);
+            }
+
+            if (eventsRes.ok) {
+                const events = await eventsRes.json();
+                updateEvents(events);
+            }
+
+            if (historyRes.ok) {
+                const history = await historyRes.json();
+                updateChart(history);
+            }
+        } catch (e) {
+            console.warn('Poll error:', e);
+        }
+    }
+
+    // ===== HEADER =====
+    function updateHeader(status) {
+        document.getElementById('simTime').textContent = `Grid Time: ${status.time}`;
+        const badge = document.getElementById('statusBadge');
+        const text = document.getElementById('statusText');
+        text.textContent = status.status;
+
+        if (status.status === 'GREEN') {
+            badge.className = 'live-badge green';
+        } else {
+            badge.className = 'live-badge dirty';
+        }
+    }
+
+    // ===== GAUGE =====
+    function updateGauge(status) {
+        const maxIntensity = 900;
+        const ratio = Math.min(status.intensity / maxIntensity, 1);
+        const arcLength = 251; // approx circumference of gauge arc
+        const offset = arcLength * (1 - ratio);
+
+        const fill = document.getElementById('gaugeFill');
+        fill.style.strokeDashoffset = offset;
+
+        const color = status.status === 'GREEN' ? 'var(--green)' : 'var(--red)';
+        fill.style.stroke = color;
+
+        const num = document.getElementById('gaugeNumber');
+        num.textContent = status.intensity.toFixed(1);
+        num.style.color = color;
+
+        document.getElementById('totalGenValue').textContent =
+            (status.totalGenMW || 0).toLocaleString() + ' MW';
+    }
+
+    // ===== ENERGY MIX =====
+    function updateEnergyMix(status) {
+        const sources = [
+            { name: 'Thermal', value: status.thermalMW, color: 'var(--thermal-color)', dirty: true },
+            { name: 'Gas', value: status.gasMW, color: 'var(--gas-color)', dirty: true },
+            { name: 'Nuclear', value: status.nuclearMW, color: 'var(--nuclear-color)' },
+            { name: 'Hydro', value: status.hydroMW, color: 'var(--hydro-color)' },
+            { name: 'Solar', value: status.solarMW, color: 'var(--solar-color)' },
+            { name: 'Wind', value: status.windMW, color: 'var(--wind-color)' },
+        ];
+
+        const maxVal = Math.max(...sources.map(s => s.value || 0), 1);
+        const container = document.getElementById('energyBars');
+
+        container.innerHTML = sources.map(s => {
+            const pct = ((s.value || 0) / maxVal * 100).toFixed(1);
+            return `
+                <div class="energy-bar-row">
+                    <span class="energy-label">${s.name}</span>
+                    <div class="energy-bar-track">
+                        <div class="energy-bar-fill" style="width: ${pct}%; background: ${s.color};"></div>
+                    </div>
+                    <span class="energy-value">${(s.value || 0).toLocaleString()} MW</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ===== JOBS =====
+    function updateJobs(jobs) {
+        const container = document.getElementById('jobList');
+
+        if (!jobs.length) {
+            container.innerHTML = '<div style="text-align:center; color: var(--text-dim); padding: 20px;">No jobs</div>';
+            return;
+        }
+
+        container.innerHTML = jobs.map(job => {
+            const statusLower = (job.status || 'pending').toLowerCase();
+            const icons = { completed: '✅', pending: '⏳', running: '⚡', waiting: '🔴' };
+            const icon = icons[statusLower] || '📦';
+            const meta = job.completedTime
+                ? `Completed at ${job.completedTime} • ${(job.completedAtIntensity || 0).toFixed(0)} gCO₂`
+                : statusLower === 'running' ? 'Executing...' : 'Waiting for green window';
+
+            return `
+                <div class="job-item">
+                    <div class="job-icon ${statusLower}">${icon}</div>
+                    <div class="job-info">
+                        <div class="job-name">${escapeHtml(job.name)}</div>
+                        <div class="job-meta">#${job.id} • ${meta}</div>
+                    </div>
+                    <span class="job-badge badge-${statusLower}">${job.status}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateStats(jobs) {
+        const completed = jobs.filter(j => j.status === 'COMPLETED').length;
+        const pending = jobs.filter(j => j.status === 'PENDING').length;
+
+        document.getElementById('statCompleted').textContent = completed;
+        document.getElementById('statPending').textContent = pending;
+        document.getElementById('statTotal').textContent = jobs.length;
+
+        // CO2 saved estimation: each job run at green vs dirty saves ~200 gCO2/kWh
+        const saved = completed * 200;
+        document.getElementById('statCO2Saved').textContent = saved > 0 ? saved + 'g' : '0g';
+    }
+
+    // ===== EVENTS =====
+    function updateEvents(events) {
+        const container = document.getElementById('eventList');
+
+        if (!events.length) {
+            container.innerHTML = '<div style="text-align:center; color: var(--text-dim); padding: 20px;">No events yet</div>';
+            return;
+        }
+
+        container.innerHTML = events.slice(0, 30).map(event => {
+            const typeClass = (event.type || '').toLowerCase().replace(/_/g, '-');
+            const time = event.timestamp
+                ? new Date(event.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+                : '--:--';
+
+            return `
+                <div class="event-item ${typeClass}">
+                    <span class="event-time">${time}</span>
+                    <span class="event-msg">${escapeHtml(event.message || '')}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // ===== CHART =====
+    function updateChart(history) {
+        const svg = document.getElementById('chartSvg');
+        if (!history || history.length < 2) return;
+
+        const data = history.slice(-20);
+        const width = svg.clientWidth || 700;
+        const height = svg.clientHeight || 180;
+        const padding = { top: 15, right: 15, bottom: 25, left: 45 };
+        const chartW = width - padding.left - padding.right;
+        const chartH = height - padding.top - padding.bottom;
+
+        const maxI = Math.max(...data.map(d => d.intensity), threshold + 50);
+        const minI = Math.min(...data.map(d => d.intensity), 0);
+        const range = maxI - minI || 1;
+
+        const xStep = chartW / (data.length - 1);
+        const thresholdY = padding.top + chartH - ((threshold - minI) / range) * chartH;
+
+        let points = data.map((d, i) => ({
+            x: padding.left + i * xStep,
+            y: padding.top + chartH - ((d.intensity - minI) / range) * chartH,
+            intensity: d.intensity,
+            time: d.time,
+            status: d.status
+        }));
+
+        // Build SVG
+        let svgContent = '';
+
+        // Y-axis labels
+        for (let i = 0; i <= 4; i++) {
+            const val = minI + (range * i / 4);
+            const y = padding.top + chartH - (i / 4) * chartH;
+            svgContent += `<text x="${padding.left - 8}" y="${y + 4}" text-anchor="end"
+                fill="var(--text-dim)" font-size="10" font-family="JetBrains Mono">${val.toFixed(0)}</text>`;
+            svgContent += `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"
+                stroke="rgba(55,65,81,0.3)" stroke-width="0.5"/>`;
+        }
+
+        // X-axis labels (every 4th)
+        data.forEach((d, i) => {
+            if (i % 4 === 0 || i === data.length - 1) {
+                const x = padding.left + i * xStep;
+                svgContent += `<text x="${x}" y="${height - 5}" text-anchor="middle"
+                    fill="var(--text-dim)" font-size="9" font-family="JetBrains Mono">${d.time}</text>`;
+            }
+        });
+
+        // Threshold line
+        svgContent += `<line class="chart-threshold-line" x1="${padding.left}" y1="${thresholdY}"
+            x2="${width - padding.right}" y2="${thresholdY}"/>`;
+        svgContent += `<text class="chart-threshold-label" x="${width - padding.right + 2}"
+            y="${thresholdY - 4}">Threshold: ${threshold}</text>`;
+
+        // Area fill under line
+        const areaPath = `M ${points[0].x} ${points[0].y} ` +
+            points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ') +
+            ` L ${points[points.length-1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`;
+
+        svgContent += `<path d="${areaPath}" fill="url(#areaGrad)" opacity="0.3"/>`;
+
+        // Gradient definition
+        svgContent += `<defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--green)" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+            </linearGradient>
+        </defs>`;
+
+        // Line path with segments colored by status
+        for (let i = 0; i < points.length - 1; i++) {
+            const color = points[i].status === 'GREEN' ? 'var(--green)' : 'var(--red)';
+            svgContent += `<line x1="${points[i].x}" y1="${points[i].y}"
+                x2="${points[i+1].x}" y2="${points[i+1].y}"
+                stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
+        }
+
+        // Dots
+        points.forEach(p => {
+            const color = p.status === 'GREEN' ? 'var(--green)' : 'var(--red)';
+            svgContent += `<circle class="chart-dot" cx="${p.x}" cy="${p.y}" r="3"
+                fill="${color}" stroke="var(--bg-primary)" stroke-width="1.5">
+                <title>${p.time}: ${p.intensity.toFixed(1)} gCO₂/kWh</title>
+            </circle>`;
+        });
+
+        svg.innerHTML = svgContent;
+    }
+
+    // ===== TABS =====
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+        if (tab === 'jobs') {
+            document.querySelector('.tab:first-child').classList.add('active');
+            document.getElementById('tabJobs').classList.add('active');
+        } else {
+            document.querySelector('.tab:last-child').classList.add('active');
+            document.getElementById('tabEvents').classList.add('active');
+        }
+    }
+
+    // ===== ACTIONS =====
+    async function addJob() {
+        const input = document.getElementById('newJobName');
+        const name = input.value.trim();
+        if (!name) return;
+
+        try {
+            await fetch(`${API_BASE}/api/scheduler/jobs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            input.value = '';
+            poll();
+        } catch (e) {
+            console.error('Add job failed:', e);
+        }
+    }
+
+    async function resetJobs() {
+        if (!confirm('Reset all jobs to PENDING?')) return;
+        try {
+            await fetch(`${API_BASE}/api/scheduler/reset`, { method: 'POST' });
+            poll();
+        } catch (e) {
+            console.error('Reset failed:', e);
+        }
+    }
+
+    // ===== UTILS =====
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    // Enter key to add job
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && document.activeElement.id === 'newJobName') {
+            addJob();
+        }
+    });
+</script>
+</body>
+</html>
