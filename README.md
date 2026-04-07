@@ -132,4 +132,4 @@ This project explores how **carbon-aware scheduling** can reduce the emissions o
 This project is for academic/research purposes.
 
 ## Author 
-**VIT Vellore** : Aarif Mohammed J K , Chinmay D
+**VIT Vellore** : Aarif Mohammed J K and Chinmay D
